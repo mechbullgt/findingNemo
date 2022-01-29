@@ -1,6 +1,19 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 
-void main() {
+import 'package:findingnemo/imaage_review_page.dart';
+import 'package:findingnemo/info_drawer.dart';
+import 'package:findingnemo/mm_button.dart';
+import 'package:findingnemo/splash_screen_page.dart';
+import 'package:findingnemo/styles.dart';
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:tflite/tflite.dart';
+import 'package:camera/camera.dart';
+
+late List<CameraDescription> cameras;
+
+void main() async {
+  cameras = await availableCameras();
   runApp(MyApp());
 }
 
@@ -9,105 +22,220 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'SandWhich',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
         primarySwatch: Colors.blue,
+        fontFamily: 'RobotoMono',
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      home: SplashScreen(),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key? key, required this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+  MyHomePage({Key? key}) : super(key: key);
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  String _res = "";
+  GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+  late CameraController controller;
+  int currentCamera = 0;
+  bool isProcessing = false;
+
+  void initState() {
+    super.initState();
+    loadCamera();
+    initModel();
+  }
+
+  initModel() async {
+    _res = (await Tflite.loadModel(
+      // model: "assets/ssd_mobilenet.tflite",
+      // labels: "assets/ssd_mobilenet.txt",
+      model: "assets/sandwich.tflite",
+      labels: "assets/sandwich.txt",
+    ))!;
+  }
+
+  loadCamera() async {
+    controller =
+        CameraController(cameras[currentCamera], ResolutionPreset.medium);
+    controller.initialize().then((_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {});
     });
   }
 
   @override
+  void dispose() async {
+    await Tflite.close();
+    await controller?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    final size = MediaQuery.of(context).size;
+    final deviceRatio = size.width / size.height;
+
     return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+      key: _scaffoldKey,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      drawer: Theme(
+        data: Theme.of(context).copyWith(
+          canvasColor: Colors.transparent,
+          primaryColor: Colors.transparent, //***PRIMARY COLOR overide works */
+
+          //** */DOES NOT OVERRIDE THEMEDATA IN MATERIALAPP***
+          primaryColorBrightness: Brightness.light,
+        ),
+        child: InfoDrawer(),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
+      body: Stack(
+        children: <Widget>[
+          controller.value.isInitialized
+              ? Transform.scale(
+                  scale: controller.value.aspectRatio / deviceRatio,
+                  child: Center(
+                    child: AspectRatio(
+                      child: CameraPreview(controller),
+                      aspectRatio: controller.value.aspectRatio,
+                    ),
+                  ),
+                )
+              : Container(),
+          Positioned(
+            bottom: 0,
+            child: Container(
+              height: size.height / 2.5,
+              width: size.width,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: FractionalOffset.topCenter,
+                  end: FractionalOffset.bottomCenter,
+                  colors: [gradientStart, gradientStop],
+                ),
+              ),
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: Padding(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+                  child: FlatButton(
+                    child:
+                        Icon(Icons.info_outline, size: 32, color: Colors.white),
+                    onPressed: () => _scaffoldKey.currentState!.openDrawer(),
+                  ),
+                ),
+              ),
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
+          ),
+          Align(
+            alignment: Alignment.topRight,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 44.0, right: 24),
+              child: IconButton(
+                icon: Icon(
+                  Icons.loop,
+                  size: 40,
+                  color: Colors.white,
+                ),
+                onPressed: () {
+                  if (cameras.length > 1) {
+                    currentCamera = (currentCamera + 1) % cameras.length;
+                    loadCamera();
+                  }
+                },
+              ),
             ),
-          ],
+          ),
+          Align(
+            alignment: Alignment.bottomRight,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: MMButton(),
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: Container(
+        width: 72.0,
+        height: 72.0,
+        child: FloatingActionButton(
+          backgroundColor: Colors.white30,
+          shape:
+              CircleBorder(side: BorderSide(color: Colors.white, width: 2.5)),
+          elevation: 2.0,
+          onPressed: isProcessing
+              ? null
+              : () {
+                  setState(() {
+                    isProcessing = true;
+                  });
+                  _takePicture().then((path) async {
+                    List? recs = await Tflite.runModelOnImage(
+                      path: ?path,
+                      // imageStd: 1,
+                      // imageMean: 1,
+                      // threshold: 0.3,
+                      // numResults: 10,
+                    );
+                    print(recs);
+                    final List<String> classes = List.from(recs!
+                        .map((rec) => "${rec["label"]}_${rec["confidence"]}")
+                        .toList());
+                    print(classes);
+                    isProcessing = false;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ImageReviewPage(
+                          imagePath: path,
+                          classes: classes,
+                        ),
+                      ),
+                    );
+                  });
+                },
+          tooltip: 'Increment',
+          child: Icon(Icons.lens, color: Colors.white, size: 72),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
+
+  Future<String?> _takePicture() async {
+    if (!controller.value.isInitialized) {
+      // TODO: show snackbar
+      print("no camera selected! show snackbar");
+      return null;
+    }
+    final Directory extDir = await getApplicationDocumentsDirectory();
+    final String dirPath = "${extDir.path}/pictures/sandwhich";
+    await Directory(dirPath).create(recursive: true);
+    final String filePath = "$dirPath/${timestamp()}.jpg";
+
+    if (controller.value.isTakingPicture) {
+      return null;
+    }
+
+    try {
+      await controller.takePicture(filePath);
+    } on CameraException catch (e) {
+      // TODO: show snackbar
+      print("show snackbar here");
+      return null;
+    }
+
+    return filePath;
+  }
+
+  String timestamp() => DateTime.now().millisecondsSinceEpoch.toString();
 }
