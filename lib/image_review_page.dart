@@ -94,14 +94,14 @@ class ImageReviewPage extends StatelessWidget {
                             child: Container(
                               height: size.height / 2.5,
                               width: size.width,
-                              child: classes.any((l) => l.contains("sandwich"))
+                              child: classes.any((l) => l.contains("not"))
                                   ? FlareActor(
-                                      AssetStrings.sandwichFlare,
-                                      animation: "sandwich",
-                                    )
-                                  : FlareActor(
                                       AssetStrings.notSandwichFlare,
                                       animation: "not_sandwich",
+                                    )
+                                  : FlareActor(
+                                      AssetStrings.sandwichFlare,
+                                      animation: "sandwich",
                                     ),
                             ),
                           ),

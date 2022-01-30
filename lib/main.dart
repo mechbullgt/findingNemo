@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:findingnemo/imaage_review_page.dart';
+import 'package:findingnemo/image_review_page.dart';
 import 'package:findingnemo/info_drawer.dart';
 import 'package:findingnemo/mm_button.dart';
 import 'package:findingnemo/splash_screen_page.dart';
@@ -11,11 +11,6 @@ import 'package:tflite/tflite.dart';
 import 'package:camera/camera.dart';
 
 List<CameraDescription> cameras = [];
-
-// void main() async {
-//   cameras = await availableCameras();
-//   runApp(MyApp());
-// }
 
 Future<void> main() async {
   try {
@@ -37,8 +32,8 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         fontFamily: 'RobotoMono',
       ),
-      // home: SplashScreen(),
-      home: MyHomePage(),
+      home: SplashScreen(),
+      // home: MyHomePage(),
     );
   }
 }
@@ -61,8 +56,12 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     print('initState() in main.dart');
     super.initState();
+    print('loading camera...');
     loadCamera();
+    print('loaded camera');
+    print('loading model...');
     initModel();
+    print('loaded model');
   }
 
   initModel() async {
@@ -72,6 +71,7 @@ class _MyHomePageState extends State<MyHomePage> {
       model: "assets/sandwich.tflite",
       labels: "assets/sandwich.txt",
     ))!;
+    print('Model-Response:' + _res);
   }
 
   loadCamera() async {
@@ -79,14 +79,17 @@ class _MyHomePageState extends State<MyHomePage> {
         CameraController(cameras[currentCamera], ResolutionPreset.medium);
     cameraController.initialize().then((_) {
       if (!mounted) {
+        print('camera not mounted');
         return;
       }
+      print('camera mounted');
       setState(() {});
     });
   }
 
   @override
   void dispose() async {
+    print('disposing resources...');
     await Tflite.close();
     await cameraController.dispose();
     super.dispose();
@@ -106,7 +109,7 @@ class _MyHomePageState extends State<MyHomePage> {
           primaryColor: Colors.transparent, //***PRIMARY COLOR overide works */
 
           //** */DOES NOT OVERRIDE THEMEDATA IN MATERIALAPP***
-          primaryColorBrightness: Brightness.light,
+          primaryColorBrightness: Brightness.dark,
         ),
         child: InfoDrawer(),
       ),
@@ -216,7 +219,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     );
                   });
                 },
-          tooltip: 'Increment',
+          tooltip: 'Capture',
           child: Icon(Icons.lens, color: Colors.white, size: 72),
         ),
       ),
@@ -231,7 +234,7 @@ class _MyHomePageState extends State<MyHomePage> {
       return null;
     }
     final Directory extDir = await getApplicationDocumentsDirectory();
-    final String dirPath = "${extDir.path}/pictures/sandwhich";
+    final String dirPath = "${extDir.path}/pictures/findingnemo";
     await Directory(dirPath).create(recursive: true);
     final String filePath = "$dirPath/${timestamp()}.jpg";
 
@@ -243,14 +246,12 @@ class _MyHomePageState extends State<MyHomePage> {
       // await cameraController!.takePicture(filePath);
       await cameraController.takePicture(filePath);
     } on CameraException catch (e) {
-      // TODO: show snackbar
-      print("show snackbar here");
+      print("CameraExcep. while _takePicture:" + e.description.toString());
       return null;
     }
-
+    print('pictureFilePath:' + filePath.toString());
     return filePath;
   }
 
-  // String timestamp() => DateTime.now().millisecondsSinceEpoch.toString();
-  String timestamp() => DateTime.now().toString();
+  String timestamp() => DateTime.now().millisecondsSinceEpoch.toString();
 }
