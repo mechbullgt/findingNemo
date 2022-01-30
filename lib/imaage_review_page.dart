@@ -54,7 +54,7 @@ class ImageReviewPage extends StatelessWidget {
     final size = MediaQuery.of(context).size;
     final deviceRatio = size.width / size.height;
     final image = Image.file(File(imagePath!));
-    final imageRatio = (image?.width ?? 1) / (image?.height ?? 1);
+    final imageRatio = (image.width ?? 1) / (image.height ?? 1);
     print(image);
 
     return Scaffold(
@@ -68,7 +68,8 @@ class ImageReviewPage extends StatelessWidget {
                   scale: imageRatio / deviceRatio,
                   child: Center(
                     child: AspectRatio(
-                      child: image ?? SizedBox(),
+                      // child: image ?? SizedBox(),
+                      child: image,
                       aspectRatio: imageRatio,
                     ),
                   ),

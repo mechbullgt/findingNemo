@@ -10,10 +10,20 @@ import 'package:path_provider/path_provider.dart';
 import 'package:tflite/tflite.dart';
 import 'package:camera/camera.dart';
 
-late List<CameraDescription> cameras;
+List<CameraDescription> cameras = [];
 
-void main() async {
-  cameras = await availableCameras();
+// void main() async {
+//   cameras = await availableCameras();
+//   runApp(MyApp());
+// }
+
+Future<void> main() async {
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
+    cameras = await availableCameras();
+  } on CameraException catch (e) {
+    print('NemoError: ' + e.description.toString());
+  }
   runApp(MyApp());
 }
 
@@ -27,7 +37,8 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         fontFamily: 'RobotoMono',
       ),
-      home: SplashScreen(),
+      // home: SplashScreen(),
+      home: MyHomePage(),
     );
   }
 }
@@ -43,11 +54,12 @@ class _MyHomePageState extends State<MyHomePage> {
   String _res = "";
   GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  late CameraController controller;
+  late CameraController cameraController;
   int currentCamera = 0;
   bool isProcessing = false;
 
   void initState() {
+    print('initState() in main.dart');
     super.initState();
     loadCamera();
     initModel();
@@ -63,9 +75,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   loadCamera() async {
-    controller =
+    cameraController =
         CameraController(cameras[currentCamera], ResolutionPreset.medium);
-    controller.initialize().then((_) {
+    cameraController.initialize().then((_) {
       if (!mounted) {
         return;
       }
@@ -76,7 +88,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void dispose() async {
     await Tflite.close();
-    await controller?.dispose();
+    await cameraController.dispose();
     super.dispose();
   }
 
@@ -100,13 +112,13 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: Stack(
         children: <Widget>[
-          controller.value.isInitialized
+          cameraController.value.isInitialized
               ? Transform.scale(
-                  scale: controller.value.aspectRatio / deviceRatio,
+                  scale: cameraController.value.aspectRatio / deviceRatio,
                   child: Center(
                     child: AspectRatio(
-                      child: CameraPreview(controller),
-                      aspectRatio: controller.value.aspectRatio,
+                      child: CameraPreview(cameraController),
+                      aspectRatio: cameraController.value.aspectRatio,
                     ),
                   ),
                 )
@@ -179,9 +191,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   setState(() {
                     isProcessing = true;
                   });
-                  _takePicture().then((path) async {
+                  _takePicture().then((picPath) async {
                     List? recs = await Tflite.runModelOnImage(
-                      path: ?path,
+                      path: picPath!,
                       // imageStd: 1,
                       // imageMean: 1,
                       // threshold: 0.3,
@@ -197,7 +209,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => ImageReviewPage(
-                          imagePath: path,
+                          imagePath: picPath,
                           classes: classes,
                         ),
                       ),
@@ -212,8 +224,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<String?> _takePicture() async {
-    if (!controller.value.isInitialized) {
-      // TODO: show snackbar
+    if (!cameraController.value.isInitialized) {
+      _scaffoldKey.currentState
+          ?.showSnackBar(SnackBar(content: Text('No Camera Selected')));
       print("no camera selected! show snackbar");
       return null;
     }
@@ -222,12 +235,13 @@ class _MyHomePageState extends State<MyHomePage> {
     await Directory(dirPath).create(recursive: true);
     final String filePath = "$dirPath/${timestamp()}.jpg";
 
-    if (controller.value.isTakingPicture) {
+    if (cameraController.value.isTakingPicture) {
       return null;
     }
 
     try {
-      await controller.takePicture(filePath);
+      // await cameraController!.takePicture(filePath);
+      await cameraController.takePicture(filePath);
     } on CameraException catch (e) {
       // TODO: show snackbar
       print("show snackbar here");
@@ -237,5 +251,6 @@ class _MyHomePageState extends State<MyHomePage> {
     return filePath;
   }
 
-  String timestamp() => DateTime.now().millisecondsSinceEpoch.toString();
+  // String timestamp() => DateTime.now().millisecondsSinceEpoch.toString();
+  String timestamp() => DateTime.now().toString();
 }
